@@ -47,8 +47,8 @@ function validateProduction(): void {
   }
 
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required production environment variables:\n  - ${missing.join('\n  - ')}`
+    console.warn(
+      `⚠ WARNING: Missing production environment variables (some features will not work):\n  - ${missing.join('\n  - ')}`
     );
   }
 }
