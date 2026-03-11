@@ -1,0 +1,18 @@
+{
+  "name": "dme-doc-portal",
+  "private": true,
+  "description": "HIPAA-aware Physician E-Sign Portal for Universal Medical Supply",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "build": "npm run build:server && npm run build:client",
+    "migrate": "cd server && npm run migrate",
+    "lint": "cd server && npm run lint && cd ../client && npm run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
