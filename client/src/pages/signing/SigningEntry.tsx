@@ -33,6 +33,9 @@ export default function SigningEntry() {
       if (res.data.section_b_data) {
         sessionStorage.setItem('section_b_data', JSON.stringify(res.data.section_b_data));
       }
+      if (res.data.context) {
+        sessionStorage.setItem('form_context', JSON.stringify(res.data.context));
+      }
       navigate(`/sign/${token}/form`);
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Verification failed';

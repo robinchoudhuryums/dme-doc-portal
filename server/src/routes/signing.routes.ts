@@ -124,10 +124,27 @@ router.post('/:token/verify', validateBody(verifyPinSchema), async (req: Request
       user_agent: req.get('user-agent'),
     });
 
+    // Fetch physician and patient context for pre-filling the form
+    const physician = await PhysicianModel.findById(submission.physician_id);
+    const patient = await PatientModel.findById(submission.patient_id);
+
     res.json({
       session_token: sessionToken,
       form_type: submission.form_type,
       section_b_data: submission.section_b_data,
+      context: {
+        physician: physician ? {
+          name: `${physician.first_name} ${physician.last_name}`,
+          npi: physician.npi,
+          practice_name: physician.practice_name,
+        } : null,
+        patient: patient ? {
+          name: `${patient.first_name} ${patient.last_name}`,
+          date_of_birth: patient.date_of_birth,
+          medicare_id: patient.medicare_id,
+          insurance_id: patient.insurance_id,
+        } : null,
+      },
     });
   } catch (err) {
     logger.error('Verify PIN error', { error: err });
