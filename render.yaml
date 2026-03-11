@@ -3,7 +3,7 @@
 
 databases:
   - name: dme-esign-db
-    plan: starter
+    plan: free
     databaseName: dme_esign
     user: dme_user
     region: ohio
@@ -13,7 +13,7 @@ services:
   - type: web
     name: dme-esign-api
     runtime: node
-    plan: starter
+    plan: free
     region: ohio
     rootDir: server
     buildCommand: npm install && npm run build && npm run migrate
@@ -97,7 +97,7 @@ services:
   - type: web
     name: dme-esign-client
     runtime: static
-    plan: starter
+    plan: free
     rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: dist
