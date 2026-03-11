@@ -16,7 +16,7 @@ services:
     plan: free
     region: ohio
     rootDir: server
-    buildCommand: npm install && npm run build && npm run migrate
+    buildCommand: npm install --include=dev && npm run build && node dist/migrations/run.js
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
