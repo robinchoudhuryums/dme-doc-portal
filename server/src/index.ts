@@ -8,6 +8,7 @@ import { config } from './config';
 import { testConnection } from './config/database';
 import { hipaaHeaders, requestAuditLogger } from './middleware/hipaa';
 import { ReminderService } from './services/reminder.service';
+import { requireStaffAuth } from './middleware/auth';
 import logger from './utils/logger';
 
 // Routes
@@ -62,6 +63,22 @@ app.use('/api/physicians', physicianRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/forms', formRoutes);
 app.use('/api/sign', signingRoutes);
+
+// Local storage download route (only active when S3 is not configured)
+import { S3Service } from './services/s3.service';
+if (S3Service.isLocal) {
+  app.get('/api/storage/:key', requireStaffAuth, async (req, res) => {
+    try {
+      const key = decodeURIComponent(req.params.key);
+      const buffer = await S3Service.downloadPdf(key);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${key.split('/').pop()}"`);
+      res.send(buffer);
+    } catch {
+      res.status(404).json({ error: 'File not found' });
+    }
+  });
+}
 
 // Health check — verifies database connectivity
 app.get('/api/health', async (_req, res) => {
