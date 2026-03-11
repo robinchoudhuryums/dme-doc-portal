@@ -98,7 +98,6 @@ services:
     name: dme-esign-client
     runtime: static
     plan: starter
-    region: ohio
     rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: dist
