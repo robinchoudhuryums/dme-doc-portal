@@ -1,4 +1,5 @@
 import { config } from '../config';
+import { S3Service } from './s3.service';
 import logger from '../utils/logger';
 
 /**
@@ -28,19 +29,25 @@ export const FaxService = {
 
 async function sendViaTwilio(to: string, pdfBuffer: Buffer): Promise<{ success: boolean; faxId?: string; error?: string }> {
   try {
-    // Twilio requires the PDF to be hosted at a URL.
-    // In production, upload to S3 with a short-lived pre-signed URL.
+    // Twilio requires the PDF to be accessible at a URL.
+    // Upload to a temp S3 key and generate a short-lived pre-signed URL.
+    const tempKey = `temp/fax-${Date.now()}.pdf`;
+    await S3Service.uploadPdf(tempKey, pdfBuffer);
+    const mediaUrl = S3Service.getSignedUrl(tempKey, 600); // 10 min expiry
+
     const twilio = await import('twilio' as string);
     const client = twilio.default(config.fax.twilio.accountSid, config.fax.twilio.authToken);
 
-    // Upload PDF to a temp URL first (via S3 signed URL or Twilio Media)
-    // For now, we'll document that the caller should provide a URL
-    // This is a simplified implementation
     const fax = await client.fax.v1.faxes.create({
       from: config.fax.twilio.faxNumber,
       to,
-      mediaUrl: '', // caller must set this to a pre-signed S3 URL
+      mediaUrl,
     });
+
+    // Clean up temp file after a delay (Twilio needs time to fetch it)
+    setTimeout(async () => {
+      try { await S3Service.deleteFile(tempKey); } catch { /* ignore */ }
+    }, 5 * 60 * 1000);
 
     logger.info('Twilio fax sent', { faxSid: fax.sid });
     return { success: true, faxId: fax.sid };
@@ -51,7 +58,7 @@ async function sendViaTwilio(to: string, pdfBuffer: Buffer): Promise<{ success: 
   }
 }
 
-async function sendViaSRFax(to: string, _pdfBuffer: Buffer): Promise<{ success: boolean; faxId?: string; error?: string }> {
+async function sendViaSRFax(to: string, pdfBuffer: Buffer): Promise<{ success: boolean; faxId?: string; error?: string }> {
   try {
     // SRFax uses a REST API with base64 PDF payload
     const https = await import('https');
@@ -64,7 +71,7 @@ async function sendViaSRFax(to: string, _pdfBuffer: Buffer): Promise<{ success: 
       sFaxType: 'SINGLE',
       sToFaxNumber: to,
       sFileName_1: 'cover-sheet.pdf',
-      sFileContent_1: _pdfBuffer.toString('base64'),
+      sFileContent_1: pdfBuffer.toString('base64'),
     });
 
     return new Promise((resolve) => {

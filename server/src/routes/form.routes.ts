@@ -16,10 +16,12 @@ import { FaxService } from '../services/fax.service';
 import { EmailService } from '../services/email.service';
 import { config } from '../config';
 import { AuditAction, FormStatus, FormType, DeliveryMethod } from '../types';
+import { safeInitials } from '../utils/helpers';
 import logger from '../utils/logger';
 
 const router = Router();
 const upload = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max
   fileFilter: (_req, file, cb) => {
     if (file.mimetype !== 'application/pdf') {
@@ -100,7 +102,7 @@ router.post(
       const physician = await PhysicianModel.findById(req.body.physician_id);
       const patient = await PatientModel.findById(req.body.patient_id);
       const physicianName = physician ? `${physician.first_name} ${physician.last_name}` : 'Unknown';
-      const patientInitials = patient ? `${patient.first_name[0]}${patient.last_name[0]}` : '??';
+      const patientInitials = patient ? safeInitials(patient.first_name, patient.last_name) : '??';
 
       if (
         (req.body.delivery_method === DeliveryMethod.FAX || req.body.delivery_method === DeliveryMethod.BOTH)
@@ -250,7 +252,12 @@ router.get('/:id/download/:type', requireStaffAuth, async (req: Request, res: Re
       return;
     }
 
-    const pdfType = req.params.type as 'original' | 'signed';
+    const pdfType = req.params.type;
+    if (pdfType !== 'original' && pdfType !== 'signed') {
+      res.status(400).json({ error: 'Invalid download type. Must be "original" or "signed".' });
+      return;
+    }
+
     let key: string;
 
     if (pdfType === 'signed') {

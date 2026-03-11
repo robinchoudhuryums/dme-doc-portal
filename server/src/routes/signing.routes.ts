@@ -15,6 +15,7 @@ import { EmailService } from '../services/email.service';
 import { NotificationService } from '../services/notification.service';
 import { config } from '../config';
 import { AuditAction, FormStatus, FormType } from '../types';
+import { safeInitials } from '../utils/helpers';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -218,13 +219,18 @@ router.post(
         details: { signed_pdf_key: signedPdfKey },
       });
 
-      // Record signature in database
-      await FormSubmissionModel.recordSignature(submission.id, {
+      // Record signature in database (atomic — prevents double-signing race condition)
+      const signed = await FormSubmissionModel.recordSignature(submission.id, {
         signature_data: req.body.signature_data,
         signed_pdf_key: signedPdfKey,
         signer_ip: signerIp,
         signer_user_agent: signerUserAgent,
       });
+
+      if (!signed) {
+        res.status(409).json({ error: 'Form was already signed by another request' });
+        return;
+      }
 
       // Cancel pending reminders
       await ReminderScheduleModel.cancelByFormSubmission(submission.id);
@@ -253,7 +259,7 @@ router.post(
 
       // Notify UMS staff via email
       const patient = await PatientModel.findById(submission.patient_id);
-      const patientInitials = patient ? `${patient.first_name[0]}${patient.last_name[0]}` : '??';
+      const patientInitials = patient ? safeInitials(patient.first_name, patient.last_name) : '??';
       const staffUser = await StaffUserModel.findById(submission.created_by);
       if (staffUser?.email) {
         await EmailService.notifyStaffFormSigned({

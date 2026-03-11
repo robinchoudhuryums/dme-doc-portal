@@ -7,7 +7,7 @@ import logger from '../utils/logger';
 
 const router = Router();
 
-const createPhysicianSchema = z.object({
+const physicianFieldsSchema = {
   npi: z.string().length(10),
   first_name: z.string().min(1).max(100),
   last_name: z.string().min(1).max(100),
@@ -20,7 +20,12 @@ const createPhysicianSchema = z.object({
   city: z.string().max(100).optional(),
   state: z.string().max(2).optional(),
   zip: z.string().max(10).optional(),
-});
+};
+
+const createPhysicianSchema = z.object(physicianFieldsSchema);
+
+// For PATCH, all fields are optional (partial update)
+const updatePhysicianSchema = z.object(physicianFieldsSchema).partial();
 
 /** GET /api/physicians — List / search physicians */
 router.get('/', requireStaffAuth, async (req: Request, res: Response) => {
@@ -71,7 +76,7 @@ router.post('/', requireStaffAuth, validateBody(createPhysicianSchema), async (r
 });
 
 /** PATCH /api/physicians/:id — Update physician */
-router.patch('/:id', requireStaffAuth, async (req: Request, res: Response) => {
+router.patch('/:id', requireStaffAuth, validateBody(updatePhysicianSchema), async (req: Request, res: Response) => {
   try {
     const physician = await PhysicianModel.update(req.params.id, req.body);
     if (!physician) {

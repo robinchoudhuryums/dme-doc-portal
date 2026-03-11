@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 
 import { config } from './config';
 import { testConnection } from './config/database';
@@ -74,6 +75,22 @@ app.use((_req, res) => {
 
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Handle multer-specific errors (file too large, wrong type)
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ error: 'File too large. Maximum size is 20 MB.' });
+      return;
+    }
+    res.status(400).json({ error: `Upload error: ${err.message}` });
+    return;
+  }
+
+  // Handle multer filter errors (wrong file type)
+  if (err.message === 'Only PDF files are allowed') {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+
   logger.error('Unhandled error', { error: err.message, stack: err.stack });
   res.status(500).json({ error: 'Internal server error' });
 });

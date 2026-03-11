@@ -11,6 +11,7 @@ import { EmailService } from './email.service';
 import { PdfService } from './pdf.service';
 import { NotificationService } from './notification.service';
 import { AuditAction, FormStatus, DeliveryMethod } from '../types';
+import { safeInitials } from '../utils/helpers';
 import logger from '../utils/logger';
 
 export const ReminderService = {
@@ -88,7 +89,7 @@ export const ReminderService = {
         }
 
         const signingUrl = `${config.signing.baseUrl}/sign/${form.signing_token}`;
-        const patientInitials = `${patient.first_name[0]}${patient.last_name[0]}`;
+        const patientInitials = safeInitials(patient.first_name, patient.last_name);
         const physicianName = `${physician.first_name} ${physician.last_name}`;
         const daysAgo = Math.round((Date.now() - new Date(form.created_at).getTime()) / (24 * 60 * 60 * 1000));
 

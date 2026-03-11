@@ -36,6 +36,10 @@ export const FormSubmissionModel = {
     return submission;
   },
 
+  /**
+   * Atomically record a signature, but only if the form is not already signed.
+   * Returns undefined if the form was already signed (prevents race condition).
+   */
   async recordSignature(
     id: string,
     data: {
@@ -45,8 +49,9 @@ export const FormSubmissionModel = {
       signer_user_agent: string;
     },
   ): Promise<FormSubmission | undefined> {
-    const [submission] = await db(TABLE)
+    const rows = await db(TABLE)
       .where({ id })
+      .whereNot({ status: FormStatus.SIGNED })
       .update({
         ...data,
         status: FormStatus.SIGNED,
@@ -54,7 +59,7 @@ export const FormSubmissionModel = {
         updated_at: db.fn.now(),
       })
       .returning('*');
-    return submission;
+    return rows[0];
   },
 
   async incrementPinAttempts(id: string): Promise<number> {
