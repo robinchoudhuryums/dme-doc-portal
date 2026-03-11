@@ -15,6 +15,46 @@ function optional(name: string, fallback: string): string {
   return process.env[name] || fallback;
 }
 
+/**
+ * Validate that critical environment variables are set in production.
+ * In development, fallbacks are acceptable; in production, missing
+ * credentials for S3, SMTP, JWT, or fax would cause silent failures.
+ */
+function validateProduction(): void {
+  const env = process.env.NODE_ENV;
+  if (env !== 'production') return;
+
+  const missing: string[] = [];
+
+  // JWT must not use the dev fallback
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-in-production') {
+    missing.push('JWT_SECRET');
+  }
+
+  // S3 credentials are required for PDF storage
+  if (!process.env.AWS_ACCESS_KEY_ID) missing.push('AWS_ACCESS_KEY_ID');
+  if (!process.env.AWS_SECRET_ACCESS_KEY) missing.push('AWS_SECRET_ACCESS_KEY');
+  if (!process.env.S3_BUCKET) missing.push('S3_BUCKET');
+
+  // At least one delivery mechanism must be configured
+  const hasSmtp = process.env.SMTP_USER && process.env.SMTP_PASSWORD;
+  const hasFax = process.env.FAX_PROVIDER === 'twilio'
+    ? (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+    : (process.env.SRFAX_ACCOUNT_NUMBER && process.env.SRFAX_PASSWORD);
+
+  if (!hasSmtp && !hasFax) {
+    missing.push('SMTP or FAX credentials (at least one delivery method required)');
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required production environment variables:\n  - ${missing.join('\n  - ')}`
+    );
+  }
+}
+
+validateProduction();
+
 export const config = {
   env: optional('NODE_ENV', 'development'),
   port: parseInt(optional('PORT', '3001'), 10),

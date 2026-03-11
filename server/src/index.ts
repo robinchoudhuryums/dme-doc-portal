@@ -63,9 +63,25 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/forms', formRoutes);
 app.use('/api/sign', signingRoutes);
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check — verifies database connectivity
+app.get('/api/health', async (_req, res) => {
+  const checks: Record<string, string> = {};
+  let healthy = true;
+
+  try {
+    const { db } = await import('./config/database');
+    await db.raw('SELECT 1');
+    checks.database = 'ok';
+  } catch {
+    checks.database = 'error';
+    healthy = false;
+  }
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    checks,
+  });
 });
 
 // 404

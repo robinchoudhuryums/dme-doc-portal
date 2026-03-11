@@ -252,6 +252,12 @@ router.get('/:id/download/:type', requireStaffAuth, async (req: Request, res: Re
       return;
     }
 
+    // Intake staff can only download forms they created; admins can download any
+    if (req.staffUser!.role === 'intake' && submission.created_by !== req.staffUser!.sub) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
     const pdfType = req.params.type;
     if (pdfType !== 'original' && pdfType !== 'signed') {
       res.status(400).json({ error: 'Invalid download type. Must be "original" or "signed".' });
