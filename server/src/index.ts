@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config';
 import { testConnection } from './config/database';
 import { hipaaHeaders, requestAuditLogger } from './middleware/hipaa';
+import { ReminderService } from './services/reminder.service';
 import logger from './utils/logger';
 
 // Routes
@@ -82,6 +83,10 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function start() {
   try {
     await testConnection();
+
+    // Start the reminder cron job
+    ReminderService.start();
+
     app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port} (${config.env})`);
     });

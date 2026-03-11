@@ -1,12 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
+import QRCode from 'qrcode';
 import { FormSubmissionModel } from '../models/form-submission.model';
 import { AuditLogModel } from '../models/audit-log.model';
 import { ReminderScheduleModel } from '../models/reminder-schedule.model';
+import { PhysicianModel } from '../models/physician.model';
+import { PatientModel } from '../models/patient.model';
 import { requireStaffAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
 import { generateSigningToken, generatePin, hashPin } from '../utils/crypto';
+import { S3Service } from '../services/s3.service';
+import { PdfService } from '../services/pdf.service';
+import { FaxService } from '../services/fax.service';
+import { EmailService } from '../services/email.service';
 import { config } from '../config';
 import { AuditAction, FormStatus, FormType, DeliveryMethod } from '../types';
 import logger from '../utils/logger';
@@ -48,8 +55,9 @@ router.post(
       const pin = generatePin();
       const pinHash = await hashPin(pin);
 
-      // In production, upload to S3 here. For now, store a placeholder key.
+      // Upload original PDF to S3
       const pdfKey = `forms/${signingToken}/original.pdf`;
+      await S3Service.uploadPdf(pdfKey, req.file.buffer);
 
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + config.signing.linkExpiryDays);
@@ -87,6 +95,58 @@ router.post(
       });
 
       const signingUrl = `${config.signing.baseUrl}/sign/${signingToken}`;
+
+      // Send signing link to physician via configured delivery method
+      const physician = await PhysicianModel.findById(req.body.physician_id);
+      const patient = await PatientModel.findById(req.body.patient_id);
+      const physicianName = physician ? `${physician.first_name} ${physician.last_name}` : 'Unknown';
+      const patientInitials = patient ? `${patient.first_name[0]}${patient.last_name[0]}` : '??';
+
+      if (
+        (req.body.delivery_method === DeliveryMethod.FAX || req.body.delivery_method === DeliveryMethod.BOTH)
+        && physician?.fax_number
+      ) {
+        const qrCodeDataUrl = await QRCode.toDataURL(signingUrl, { width: 200, margin: 1 });
+        const coverPdf = await PdfService.generateCoverSheet({
+          physicianName,
+          patientInitials,
+          formType: req.body.form_type,
+          signingUrl,
+          qrCodeDataUrl,
+        });
+        const faxResult = await FaxService.sendFax({
+          to: physician.fax_number,
+          pdfBuffer: coverPdf,
+          subject: `CMN ${req.body.form_type} — Patient ${patientInitials}`,
+        });
+
+        await AuditLogModel.create({
+          form_submission_id: submission.id,
+          action: AuditAction.FAX_SENT,
+          actor_type: 'system',
+          details: { success: faxResult.success, fax_id: faxResult.faxId },
+        });
+      }
+
+      if (
+        (req.body.delivery_method === DeliveryMethod.EMAIL || req.body.delivery_method === DeliveryMethod.BOTH)
+        && physician?.email
+      ) {
+        const emailResult = await EmailService.sendSigningLink({
+          to: physician.email,
+          physicianName,
+          patientInitials,
+          formType: req.body.form_type,
+          signingUrl,
+        });
+
+        await AuditLogModel.create({
+          form_submission_id: submission.id,
+          action: AuditAction.EMAIL_SENT,
+          actor_type: 'system',
+          details: { success: emailResult.success },
+        });
+      }
 
       logger.info('Form created', { formId: submission.id });
 
@@ -177,6 +237,47 @@ router.post('/:id/cancel', requireStaffAuth, async (req: Request, res: Response)
     res.json({ message: 'Form cancelled' });
   } catch (err) {
     logger.error('Cancel form error', { error: err });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/** GET /api/forms/:id/download/:type — Download original or signed PDF */
+router.get('/:id/download/:type', requireStaffAuth, async (req: Request, res: Response) => {
+  try {
+    const submission = await FormSubmissionModel.findById(req.params.id);
+    if (!submission) {
+      res.status(404).json({ error: 'Form not found' });
+      return;
+    }
+
+    const pdfType = req.params.type as 'original' | 'signed';
+    let key: string;
+
+    if (pdfType === 'signed') {
+      if (!submission.signed_pdf_key) {
+        res.status(404).json({ error: 'Signed PDF not yet available' });
+        return;
+      }
+      key = submission.signed_pdf_key;
+    } else {
+      key = submission.original_pdf_key;
+    }
+
+    // Return a pre-signed S3 URL (expires in 5 minutes)
+    const downloadUrl = S3Service.getSignedUrl(key, 300);
+
+    await AuditLogModel.create({
+      form_submission_id: submission.id,
+      action: AuditAction.STAFF_DOWNLOADED,
+      actor_type: 'staff',
+      actor_id: req.staffUser!.sub,
+      ip_address: req.ip,
+      details: { pdf_type: pdfType },
+    });
+
+    res.json({ download_url: downloadUrl });
+  } catch (err) {
+    logger.error('Download form error', { error: err });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

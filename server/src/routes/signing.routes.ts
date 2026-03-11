@@ -3,11 +3,18 @@ import { z } from 'zod';
 import { FormSubmissionModel } from '../models/form-submission.model';
 import { AuditLogModel } from '../models/audit-log.model';
 import { ReminderScheduleModel } from '../models/reminder-schedule.model';
+import { PhysicianModel } from '../models/physician.model';
+import { PatientModel } from '../models/patient.model';
+import { StaffUserModel } from '../models/staff-user.model';
 import { verifyPin } from '../utils/crypto';
 import { generatePhysicianSessionToken, requirePhysicianSession } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
+import { S3Service } from '../services/s3.service';
+import { PdfService } from '../services/pdf.service';
+import { EmailService } from '../services/email.service';
+import { NotificationService } from '../services/notification.service';
 import { config } from '../config';
-import { AuditAction, FormStatus } from '../types';
+import { AuditAction, FormStatus, FormType } from '../types';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -181,14 +188,42 @@ router.post(
         return;
       }
 
-      // In production: generate signed PDF with pdf-lib, upload to S3
-      const signedPdfKey = `forms/${submission.signing_token}/signed.pdf`;
+      const signedAt = new Date();
+      const signerIp = req.ip || 'unknown';
+      const signerUserAgent = req.get('user-agent') || 'unknown';
 
+      // Download original PDF, generate signed version with Section B + signature
+      const originalPdf = await S3Service.downloadPdf(submission.original_pdf_key);
+      const physician = await PhysicianModel.findById(submission.physician_id);
+      const physicianName = physician ? `${physician.first_name} ${physician.last_name}` : 'Unknown';
+
+      const signedPdfBuffer = await PdfService.generateSignedPdf({
+        originalPdfBuffer: originalPdf,
+        formType: submission.form_type as FormType,
+        sectionBData: (submission.section_b_data as Record<string, unknown>) || {},
+        signatureDataUrl: req.body.signature_data,
+        physicianName,
+        signerIp,
+        signedAt,
+      });
+
+      // Upload signed PDF to S3
+      const signedPdfKey = `forms/${submission.signing_token}/signed.pdf`;
+      await S3Service.uploadPdf(signedPdfKey, signedPdfBuffer);
+
+      await AuditLogModel.create({
+        form_submission_id: submission.id,
+        action: AuditAction.SIGNED_PDF_GENERATED,
+        actor_type: 'system',
+        details: { signed_pdf_key: signedPdfKey },
+      });
+
+      // Record signature in database
       await FormSubmissionModel.recordSignature(submission.id, {
         signature_data: req.body.signature_data,
         signed_pdf_key: signedPdfKey,
-        signer_ip: req.ip || 'unknown',
-        signer_user_agent: req.get('user-agent') || 'unknown',
+        signer_ip: signerIp,
+        signer_user_agent: signerUserAgent,
       });
 
       // Cancel pending reminders
@@ -201,14 +236,35 @@ router.post(
         actor_id: submission.physician_id,
         ip_address: req.ip,
         user_agent: req.get('user-agent'),
-        details: {
-          signed_at: new Date().toISOString(),
-        },
+        details: { signed_at: signedAt.toISOString() },
       });
 
       logger.info('Form signed', { formId: submission.id });
 
-      // TODO: Send webhook/email notification to UMS staff
+      // Send webhook notification
+      await NotificationService.notifyFormSigned({
+        form_id: submission.id,
+        form_type: submission.form_type,
+        physician_id: submission.physician_id,
+        patient_id: submission.patient_id,
+        signed_at: signedAt.toISOString(),
+        signed_pdf_key: signedPdfKey,
+      });
+
+      // Notify UMS staff via email
+      const patient = await PatientModel.findById(submission.patient_id);
+      const patientInitials = patient ? `${patient.first_name[0]}${patient.last_name[0]}` : '??';
+      const staffUser = await StaffUserModel.findById(submission.created_by);
+      if (staffUser?.email) {
+        await EmailService.notifyStaffFormSigned({
+          staffEmail: staffUser.email,
+          physicianName,
+          patientInitials,
+          formType: submission.form_type,
+          formId: submission.id,
+          signedAt: signedAt.toISOString(),
+        });
+      }
 
       res.json({ message: 'Form signed successfully' });
     } catch (err) {
