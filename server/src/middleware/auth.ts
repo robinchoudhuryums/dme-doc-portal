@@ -77,7 +77,7 @@ export function requirePhysicianSession(req: Request, res: Response, next: NextF
 export function generateStaffToken(payload: Omit<StaffJwtPayload, 'iat' | 'exp'>): string {
   return jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.staffExpiresIn,
-  });
+  } as jwt.SignOptions);
 }
 
 /**
@@ -94,5 +94,5 @@ export function generatePhysicianSessionToken(
   };
   return jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.physicianSessionExpiresIn,
-  });
+  } as jwt.SignOptions);
 }
