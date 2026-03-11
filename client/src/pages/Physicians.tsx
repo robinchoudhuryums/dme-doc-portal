@@ -49,22 +49,25 @@ export default function Physicians() {
     <>
       <Header />
       <div className="page-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Physician Directory</h2>
+        <div className="page-header">
+          <div>
+            <h2 className="page-title">Physician Directory</h2>
+            <p className="page-subtitle">Manage physicians who receive CMN forms for signature</p>
+          </div>
           <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : 'Add Physician'}
+            {showForm ? 'Cancel' : '+ Add Physician'}
           </button>
         </div>
 
         {showForm && (
-          <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>New Physician</h3>
+          <div className="card" style={{ marginBottom: '1.25rem', animation: 'slideUp 0.2s ease' }}>
+            <h3 className="card-title" style={{ marginBottom: '1rem' }}>New Physician</h3>
             {error && <div className="error-message">{error}</div>}
             <form onSubmit={handleCreate}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0 1.25rem' }}>
                 <div className="form-group">
                   <label>NPI (10 digits)</label>
-                  <input className="form-input" value={newDoc.npi} onChange={(e) => setNewDoc({ ...newDoc, npi: e.target.value })} required maxLength={10} />
+                  <input className="form-input" value={newDoc.npi} onChange={(e) => setNewDoc({ ...newDoc, npi: e.target.value })} required maxLength={10} placeholder="1234567890" />
                 </div>
                 <div className="form-group">
                   <label>First Name</label>
@@ -76,18 +79,18 @@ export default function Physicians() {
                 </div>
                 <div className="form-group">
                   <label>Fax Number</label>
-                  <input className="form-input" value={newDoc.fax_number} onChange={(e) => setNewDoc({ ...newDoc, fax_number: e.target.value })} />
+                  <input className="form-input" value={newDoc.fax_number} onChange={(e) => setNewDoc({ ...newDoc, fax_number: e.target.value })} placeholder="+1 (555) 123-4567" />
                 </div>
                 <div className="form-group">
                   <label>Email</label>
-                  <input className="form-input" type="email" value={newDoc.email} onChange={(e) => setNewDoc({ ...newDoc, email: e.target.value })} />
+                  <input className="form-input" type="email" value={newDoc.email} onChange={(e) => setNewDoc({ ...newDoc, email: e.target.value })} placeholder="doctor@practice.com" />
                 </div>
                 <div className="form-group">
                   <label>Practice Name</label>
                   <input className="form-input" value={newDoc.practice_name} onChange={(e) => setNewDoc({ ...newDoc, practice_name: e.target.value })} />
                 </div>
               </div>
-              <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>Add Physician</button>
+              <button type="submit" className="btn btn-primary" style={{ marginTop: '0.25rem' }}>Add Physician</button>
             </form>
           </div>
         )}
@@ -99,38 +102,60 @@ export default function Physicians() {
               placeholder="Search by name, NPI, or practice..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              style={{ maxWidth: '360px' }}
             />
           </div>
 
           {loading ? (
-            <p style={{ color: 'var(--color-gray-500)' }}>Loading...</p>
-          ) : physicians.length === 0 ? (
-            <p style={{ color: 'var(--color-gray-500)' }}>No physicians found.</p>
-          ) : (
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>NPI</th>
-                    <th>Fax</th>
-                    <th>Email</th>
-                    <th>Practice</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {physicians.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.last_name}, {p.first_name}</td>
-                      <td>{p.npi}</td>
-                      <td>{p.fax_number || '—'}</td>
-                      <td>{p.email || '—'}</td>
-                      <td>{p.practice_name || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="empty-state">
+              <p style={{ animation: 'pulse 1.5s ease infinite' }}>Loading physicians...</p>
             </div>
+          ) : physicians.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">&#129658;</div>
+              <p>No physicians found. Add your first physician to get started.</p>
+            </div>
+          ) : (
+            <>
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>NPI</th>
+                      <th>Fax</th>
+                      <th>Email</th>
+                      <th>Practice</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {physicians.map((p) => (
+                      <tr key={p.id}>
+                        <td style={{ fontWeight: 500 }}>{p.last_name}, {p.first_name}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{p.npi}</td>
+                        <td>{p.fax_number || <span style={{ color: 'var(--color-gray-300)' }}>—</span>}</td>
+                        <td>{p.email || <span style={{ color: 'var(--color-gray-300)' }}>—</span>}</td>
+                        <td>{p.practice_name || <span style={{ color: 'var(--color-gray-300)' }}>—</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {total > 25 && (
+                <div className="pagination">
+                  <button className="btn btn-outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+                    Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {page} of {Math.ceil(total / 25)}
+                  </span>
+                  <button className="btn btn-outline" onClick={() => setPage((p) => p + 1)} disabled={page >= Math.ceil(total / 25)}>
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import api from '../services/api';
@@ -6,6 +6,7 @@ import { FormType, DeliveryMethod, FORM_TYPE_LABELS } from '../types';
 
 export default function NewForm() {
   const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [formType, setFormType] = useState<FormType>(FormType.CMS_484);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DeliveryMethod.FAX);
   const [physicianId, setPhysicianId] = useState('');
@@ -74,22 +75,29 @@ export default function NewForm() {
       <>
         <Header />
         <div className="page-content">
-          <div className="card" style={{ maxWidth: '600px', margin: '0 auto' }}>
-            <div className="success-message">Form created successfully!</div>
+          <div className="card" style={{ maxWidth: '560px', margin: '0 auto' }}>
+            <div className="success-card">
+              <div className="success-card-icon">&#10003;</div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>Form Created Successfully</h2>
+              <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                The signing link has been sent to the physician.
+              </p>
+            </div>
+
             <div className="form-group">
               <label>Signing URL</label>
               <input className="form-input" readOnly value={result.signing_url} onClick={(e) => (e.target as HTMLInputElement).select()} />
             </div>
             <div className="form-group">
               <label>PIN (communicate separately to physician)</label>
-              <input className="form-input" readOnly value={result.pin} style={{ fontSize: '1.5rem', textAlign: 'center', letterSpacing: '0.5rem', fontWeight: 700 }} />
+              <input className="form-input pin-input" readOnly value={result.pin} onClick={(e) => (e.target as HTMLInputElement).select()} />
             </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginTop: '0.5rem' }}>
-              IMPORTANT: Send the PIN via a separate channel (phone, separate email) from the signing link for security.
-            </p>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+            <div className="warning-message" style={{ fontSize: '0.8125rem' }}>
+              <strong>Security:</strong> Send the PIN via a separate channel (phone, separate email) from the signing link.
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
               <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>Go to Dashboard</button>
-              <button className="btn btn-outline" onClick={() => { setResult(null); setPhysicianId(''); setPatientId(''); setPdfFile(null); }}>
+              <button className="btn btn-outline" onClick={() => { setResult(null); setPhysicianId(''); setPatientId(''); setPhysicianQuery(''); setPatientQuery(''); setPdfFile(null); }}>
                 Create Another
               </button>
             </div>
@@ -103,8 +111,11 @@ export default function NewForm() {
     <>
       <Header />
       <div className="page-content">
-        <div className="card" style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>New CMN Form</h2>
+        <div className="card" style={{ maxWidth: '560px', margin: '0 auto' }}>
+          <div style={{ marginBottom: '1.75rem' }}>
+            <h2 className="page-title" style={{ fontSize: '1.25rem' }}>New CMN Form</h2>
+            <p className="page-subtitle">Fill in the details to create and send a form for physician signature.</p>
+          </div>
           {error && <div className="error-message">{error}</div>}
 
           <form onSubmit={handleSubmit}>
@@ -122,7 +133,7 @@ export default function NewForm() {
               <select className="form-select" value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value as DeliveryMethod)}>
                 <option value="fax">Fax</option>
                 <option value="email">Email</option>
-                <option value="both">Both</option>
+                <option value="both">Both (Fax + Email)</option>
               </select>
             </div>
 
@@ -135,14 +146,15 @@ export default function NewForm() {
                 onChange={(e) => searchPhysicians(e.target.value)}
               />
               {physicianResults.length > 0 && !physicianId && (
-                <div style={{ border: '1px solid var(--color-gray-200)', borderRadius: 'var(--radius)', marginTop: '0.25rem', maxHeight: '200px', overflow: 'auto' }}>
+                <div className="autocomplete-dropdown">
                   {physicianResults.map((p) => (
                     <div
                       key={p.id}
-                      style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem' }}
+                      className="autocomplete-item"
                       onClick={() => { setPhysicianId(p.id); setPhysicianQuery(`${p.last_name}, ${p.first_name} (NPI: ${p.npi})`); setPhysicianResults([]); }}
                     >
-                      {p.last_name}, {p.first_name} — NPI: {p.npi}
+                      <strong>{p.last_name}, {p.first_name}</strong>
+                      <span style={{ color: 'var(--color-gray-400)', marginLeft: '0.5rem' }}>NPI: {p.npi}</span>
                     </div>
                   ))}
                 </div>
@@ -158,11 +170,11 @@ export default function NewForm() {
                 onChange={(e) => searchPatients(e.target.value)}
               />
               {patientResults.length > 0 && !patientId && (
-                <div style={{ border: '1px solid var(--color-gray-200)', borderRadius: 'var(--radius)', marginTop: '0.25rem', maxHeight: '200px', overflow: 'auto' }}>
+                <div className="autocomplete-dropdown">
                   {patientResults.map((p) => (
                     <div
                       key={p.id}
-                      style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem' }}
+                      className="autocomplete-item"
                       onClick={() => { setPatientId(p.id); setPatientQuery(`${p.last_name}, ${p.first_name}`); setPatientResults([]); }}
                     >
                       {p.last_name}, {p.first_name}
@@ -174,15 +186,34 @@ export default function NewForm() {
 
             <div className="form-group">
               <label>Pre-filled CMN PDF (Section A completed)</label>
-              <input
-                type="file"
-                accept="application/pdf"
-                className="form-input"
-                onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
-              />
+              <div
+                className={`file-upload ${pdfFile ? 'has-file' : ''}`}
+                onClick={() => fileRef.current?.click()}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="application/pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                />
+                {pdfFile ? (
+                  <>
+                    <div className="file-upload-icon">&#128196;</div>
+                    <div className="file-upload-text"><strong>{pdfFile.name}</strong></div>
+                    <div className="file-upload-text">{(pdfFile.size / 1024).toFixed(0)} KB</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="file-upload-icon">&#128194;</div>
+                    <div className="file-upload-text"><strong>Click to upload</strong> or drag and drop</div>
+                    <div className="file-upload-text">PDF files only, up to 20 MB</div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} disabled={loading}>
               {loading ? 'Creating...' : 'Create & Send to Physician'}
             </button>
           </form>

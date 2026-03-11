@@ -210,16 +210,24 @@ export default function SigningForm() {
     return (
       <div className="signing-container">
         <div className="signing-header">
+          <div className="signing-logo">UMS</div>
           <h1>Universal Medical Supply</h1>
         </div>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div className="success-message" style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>
-            Document signed successfully!
+        <div className="card">
+          <div className="success-card">
+            <div className="success-card-icon">&#10003;</div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              Document Signed Successfully
+            </h2>
+            <p style={{ color: 'var(--color-gray-500)', maxWidth: '360px', margin: '0 auto' }}>
+              Thank you. Universal Medical Supply has been notified and will process the signed document.
+              You may close this window.
+            </p>
           </div>
-          <p style={{ color: 'var(--color-gray-500)' }}>
-            Thank you. Universal Medical Supply has been notified and will process the signed document.
-            You may close this window.
-          </p>
+        </div>
+        <div className="security-footer">
+          <div className="security-footer-icon">&#128274;</div>
+          <span>Your signature has been securely recorded with IP and timestamp.</span>
         </div>
       </div>
     );
@@ -234,6 +242,7 @@ export default function SigningForm() {
   return (
     <div className="signing-container">
       <div className="signing-header">
+        <div className="signing-logo">UMS</div>
         <h1>Universal Medical Supply</h1>
         <p>{getFormTypeLabel(formType)}</p>
       </div>
@@ -264,7 +273,7 @@ export default function SigningForm() {
       {/* ─── Step 1: Review Info ───────────────────────────────────── */}
       {currentStep === 0 && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+          <h3 className="card-title" style={{ marginBottom: '0.5rem' }}>
             Please confirm the following information
           </h3>
           <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
@@ -338,7 +347,7 @@ export default function SigningForm() {
       {/* ─── Step 2: Clinical Questions (Section B) ────────────────── */}
       {currentStep === 1 && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+          <h3 className="card-title" style={{ marginBottom: '0.25rem' }}>
             Section B — Clinical Information
           </h3>
           <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
@@ -421,7 +430,7 @@ export default function SigningForm() {
 
           {/* Review summary */}
           <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+            <h3 className="card-title" style={{ marginBottom: '0.5rem' }}>
               Review Your Responses
             </h3>
             <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem', marginBottom: '1rem' }}>
@@ -453,7 +462,7 @@ export default function SigningForm() {
 
           {/* Signature Pad */}
           <div className="card">
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            <h3 className="card-title" style={{ marginBottom: '0.5rem' }}>
               Physician Signature
             </h3>
             <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem', marginBottom: '1rem' }}>
@@ -498,13 +507,18 @@ export default function SigningForm() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '1rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '1rem', marginBottom: '1rem' }}>
             <button className="btn btn-outline" onClick={() => goToStep(1)}>
               Back to Clinical Questions
             </button>
           </div>
         </>
       )}
+
+      <div className="security-footer">
+        <div className="security-footer-icon">&#128274;</div>
+        <span>HIPAA-compliant secure portal</span>
+      </div>
     </div>
   );
 }

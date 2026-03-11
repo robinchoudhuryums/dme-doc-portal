@@ -49,10 +49,11 @@ export default function SigningEntry() {
     return (
       <div className="signing-container">
         <div className="signing-header">
+          <div className="signing-logo">UMS</div>
           <h1>Universal Medical Supply</h1>
           <p>Secure Document Signing</p>
         </div>
-        <p style={{ textAlign: 'center', color: 'var(--color-gray-500)' }}>Loading...</p>
+        <div className="loading" style={{ minHeight: 'auto', padding: '2rem' }}>Loading...</div>
       </div>
     );
   }
@@ -61,10 +62,16 @@ export default function SigningEntry() {
     return (
       <div className="signing-container">
         <div className="signing-header">
+          <div className="signing-logo">UMS</div>
           <h1>Universal Medical Supply</h1>
           <p>Secure Document Signing</p>
         </div>
-        <div className="error-message">{error || 'This link is no longer valid.'}</div>
+        <div className="card">
+          <div className="error-message">{error || 'This link is no longer valid.'}</div>
+          <p style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-gray-500)', marginTop: '0.5rem' }}>
+            If you believe this is an error, please contact Universal Medical Supply.
+          </p>
+        </div>
       </div>
     );
   }
@@ -72,12 +79,13 @@ export default function SigningEntry() {
   return (
     <div className="signing-container">
       <div className="signing-header">
+        <div className="signing-logo">UMS</div>
         <h1>Universal Medical Supply</h1>
         <p>Secure Document Signing</p>
       </div>
 
       <div className="card">
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.375rem' }}>
           Verify Your Identity
         </h2>
         <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
@@ -94,8 +102,7 @@ export default function SigningEntry() {
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              className="form-input"
-              style={{ fontSize: '1.5rem', textAlign: 'center', letterSpacing: '0.75rem' }}
+              className="form-input pin-input"
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="000000"
@@ -104,16 +111,17 @@ export default function SigningEntry() {
               autoComplete="one-time-code"
             />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={verifying || pin.length < 6}>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem' }} disabled={verifying || pin.length < 6}>
             {verifying ? 'Verifying...' : 'Continue'}
           </button>
         </form>
       </div>
 
-      <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-gray-500)', marginTop: '2rem' }}>
-        This is a secure portal. Your session will expire after 15 minutes of inactivity.
-        <br />If you need assistance, contact Universal Medical Supply.
-      </p>
+      <div className="security-footer">
+        <div className="security-footer-icon">&#128274;</div>
+        <span>This is a HIPAA-compliant secure portal.</span>
+        <span>Your session will expire after 15 minutes of inactivity.</span>
+      </div>
     </div>
   );
 }
